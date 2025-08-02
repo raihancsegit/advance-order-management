@@ -2,31 +2,22 @@
 
 /**
  * Plugin Name:       Advanced Order Reports for WooCommerce
- * Plugin URI:        https://wordpress.org/plugins/your-plugin-slug/
+ * Plugin URI:        https://github.com/raihancsegit/advance-order-management
  * Description:       A modern reporting dashboard for WooCommerce, built with React.
- * Version:           1.1.0
- * Author:            Your Name
+ * Version:           1.2.0
+ * Author:            Raihan Islam
  * License:           GPL v2 or later
  * Text Domain:       advanced-order-reports-for-woocommerce
- * WC requires at least: 6.0
  */
 
-// Block direct access.
 if (! defined('ABSPATH')) {
     exit;
 }
 
-// Define plugin constants
-define('AORW_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__));
-define('AORW_APP_BUILD_PATH', plugin_dir_path(__FILE__) . 'app/build/');
-define('AORW_APP_BUILD_URL', plugin_dir_url(__FILE__) . 'app/build/');
+define('AORW_VERSION', '1.2.0');
 
-/**
- * The main plugin class.
- */
 final class Advanced_Order_Reports_For_WooCommerce
 {
-
     private static $_instance = null;
 
     public static function instance()
@@ -39,87 +30,96 @@ final class Advanced_Order_Reports_For_WooCommerce
 
     private function __construct()
     {
+        // Register the admin menu page on the 'admin_menu' hook.
         add_action('admin_menu', array($this, 'register_admin_page'));
     }
 
     /**
-     * Register the admin menu page for our app.
+     * Registers the admin menu page.
      */
     public function register_admin_page()
     {
-        $hook_suffix = add_menu_page(
-            __('Order Reports', 'advanced-order-reports-for-woocommerce'),
-            __('Order Reports', 'advanced-order-reports-for-woocommerce'),
+        add_menu_page(
+            'Order Reports',
+            'Order Reports',
             'view_woocommerce_reports',
-            'aorw-reports',
+            'aorw-reports', // This is our page's slug
             array($this, 'render_app_root'),
             'dashicons-chart-area',
             56
         );
 
-        // Load our app's scripts and styles only on our admin page.
-        add_action('admin_enqueue_scripts', function ($hook) use ($hook_suffix) {
-            if ($hook === $hook_suffix) {
-                $this->enqueue_react_app_assets();
-            }
-        });
+        // ✅ The correct way to enqueue scripts for a specific admin page.
+        // We use the 'admin_enqueue_scripts' hook directly, not inside another function.
+        // We check if the current page is our reports page.
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_assets_for_admin_page'));
     }
 
     /**
-     * Render the root HTML element for our React app to mount on.
+     * Renders the root div for our React app.
      */
     public function render_app_root()
     {
-        // This div is the entry point for our React app.
         echo '<div id="aorw-react-app-root"></div>';
     }
 
     /**
-     * Enqueue the built JS and CSS files from the React app.
+     * Checks the current admin page and enqueues assets if it's our page.
+     * @param string $hook The hook suffix of the current page.
      */
-    private function enqueue_react_app_assets()
+    public function enqueue_assets_for_admin_page($hook)
     {
-        $manifest_path = AORW_APP_BUILD_PATH . 'asset-manifest.json';
-
-        if (! file_exists($manifest_path)) {
-            // Show an error if the build files are not found.
-            wp_die(esc_html__('React app build files are missing. Please run "npm run build" in the react-app directory and copy the build folder.', 'advanced-order-reports-for-woocommerce'));
+        // We only load our assets on our specific plugin page.
+        if ('toplevel_page_aorw-reports' !== $hook) {
             return;
         }
 
-        // Decode the asset manifest to find the file names.
-        $manifest = json_decode(file_get_contents($manifest_path), true);
-        $entrypoints = $manifest['files'];
+        // ✅ Step 1: Enqueue Tailwind CSS directly from its CDN.
+        wp_enqueue_style(
+            'tailwindcss-cdn',
+            'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css', // Tailwind v2 is stable for CDN
+            array(),
+            '2.2.19'
+        );
 
-        // Enqueue the main CSS file.
-        if (isset($entrypoints['main.css'])) {
+        // --- The rest of the function remains the same ---
+
+        $build_path = plugin_dir_path(__FILE__) . 'build/';
+        $build_url = plugin_dir_url(__FILE__) . 'build/';
+        $manifest_path = $build_path . 'asset-manifest.json';
+
+        if (! file_exists($manifest_path)) {
+            wp_die('<strong>Error:</strong> React app build files are missing.');
+            return;
+        }
+
+        $manifest = json_decode(file_get_contents($manifest_path), true);
+        $files = $manifest['files'];
+
+        // Enqueue the (now Tailwind-free) main CSS file from our app.
+        if (isset($files['main.css'])) {
             wp_enqueue_style(
-                'aorw-react-app',
-                AORW_APP_BUILD_URL . $entrypoints['main.css']
+                'aorw-react-app-styles',
+                $build_url . $files['main.css'],
+                array('tailwindcss-cdn'), // ✅ Set Tailwind as a dependency
+                AORW_VERSION
             );
         }
 
         // Enqueue the main JS file.
-        if (isset($entrypoints['main.js'])) {
+        if (isset($files['main.js'])) {
             wp_enqueue_script(
-                'aorw-react-app',
-                AORW_APP_BUILD_URL . $entrypoints['main.js'],
-                array('wp-element'), // Dependency
-                null,                // Version
-                true                 // Load in footer
+                'aorw-react-app-scripts',
+                $build_url . $files['main.js'],
+                array('wp-element'),
+                AORW_VERSION,
+                true
             );
         }
 
-        // Optional: Add inline CSS for a better fullscreen experience
-        $inline_css = "
-            #wpbody-content { position: relative; }
-            #aorw-react-app-root { height: calc(100vh - 32px); }
-        ";
-        wp_add_inline_style('aorw-react-app', $inline_css);
+        // We don't need extra inline CSS anymore, as the CDN handles scoping.
     }
 }
 
-/**
- * Initialize the plugin once all other plugins are loaded.
- */
+// Initialize the plugin
 add_action('plugins_loaded', array('Advanced_Order_Reports_For_WooCommerce', 'instance'));
