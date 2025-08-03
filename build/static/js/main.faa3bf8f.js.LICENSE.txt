@@ -1,4 +1,10 @@
 /*!
+  react-datepicker v8.4.0
+  https://github.com/Hacker0x01/react-datepicker
+  Released under the MIT License.
+*/
+
+/*!
  * @kurkle/color v0.3.4
  * https://github.com/kurkle/color#readme
  * (c) 2024 Jukka Kurkela
@@ -60,4 +66,11 @@
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
+ */
+
+/**
+ * @license lucide-react v0.536.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
  */

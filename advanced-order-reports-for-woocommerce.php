@@ -15,6 +15,7 @@ if (! defined('ABSPATH')) {
 }
 
 define('AORW_VERSION', '1.2.0');
+require_once plugin_dir_path(__FILE__) . 'includes/class-aorw-api.php';
 
 final class Advanced_Order_Reports_For_WooCommerce
 {
@@ -32,6 +33,7 @@ final class Advanced_Order_Reports_For_WooCommerce
     {
         // Register the admin menu page on the 'admin_menu' hook.
         add_action('admin_menu', array($this, 'register_admin_page'));
+        new AORW_API();
     }
 
     /**
@@ -116,6 +118,15 @@ final class Advanced_Order_Reports_For_WooCommerce
                 true
             );
         }
+
+        wp_localize_script(
+            'aorw-react-app-scripts',
+            'aorwApiSettings',
+            array(
+                'root'  => esc_url_raw(rest_url('aorw/v1/')),
+                'nonce' => wp_create_nonce('wp_rest'),
+            )
+        );
 
         // We don't need extra inline CSS anymore, as the CDN handles scoping.
     }
