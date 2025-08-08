@@ -15,8 +15,9 @@ if (! defined('ABSPATH')) {
 }
 
 define('AORW_VERSION', '1.2.0');
+define('AORW_PLUGIN_DIR_PATH', plugin_dir_path(__FILE__));
 require_once plugin_dir_path(__FILE__) . 'includes/class-aorw-api.php';
-
+require_once plugin_dir_path(__FILE__) . 'includes/class-aorw-my-account.php';
 final class Advanced_Order_Reports_For_WooCommerce
 {
     private static $_instance = null;
@@ -34,6 +35,7 @@ final class Advanced_Order_Reports_For_WooCommerce
         // Register the admin menu page on the 'admin_menu' hook.
         add_action('admin_menu', array($this, 'register_admin_page'));
         new AORW_API();
+        new AORW_My_Account();
     }
 
     /**
@@ -134,3 +136,29 @@ final class Advanced_Order_Reports_For_WooCommerce
 
 // Initialize the plugin
 add_action('plugins_loaded', array('Advanced_Order_Reports_For_WooCommerce', 'instance'));
+
+function aorw_activate()
+{
+    // We need to ensure our endpoint is registered before flushing.
+    // So, we call the function that adds the endpoint.
+    if (class_exists('Advanced_Order_Reports_For_WooCommerce')) {
+        $plugin_instance = Advanced_Order_Reports_For_WooCommerce::instance();
+        // Temporarily load the My Account class to register the endpoint
+        if (file_exists(plugin_dir_path(__FILE__) . 'includes/class-aorw-my-account.php')) {
+            require_once plugin_dir_path(__FILE__) . 'includes/class-aorw-my-account.php';
+            $my_account_instance = new AORW_My_Account();
+            $my_account_instance->add_my_reports_endpoint();
+        }
+    }
+    flush_rewrite_rules();
+}
+register_activation_hook(__FILE__, 'aorw_activate');
+
+/**
+ * Flush rewrite rules on plugin deactivation as well.
+ */
+function aorw_deactivate()
+{
+    flush_rewrite_rules();
+}
+register_deactivation_hook(__FILE__, 'aorw_deactivate');
